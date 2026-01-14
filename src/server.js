@@ -1,41 +1,24 @@
 import http from "node:http";
 import { json } from "./middlewares/json.js";
-import { Database } from "./middlewares/database.js";
-import { randomUUID } from "node:crypto";
+import { routes } from "./middlewares/routes.js";
 
-//compreendido a diferença entre uma aplicação Stateful(dados em memória) e uma aplicação Stateless
-
-//JSON
-
-// Cabeçalhos (Requisição/Resposta) => Metadados
-
-//HTTP Status Code
-
-const database = new Database()
 
 const server = http.createServer(async (req, res) => {
   const { method, url } = req;
 
   await json(req, res);
 
-  if (method === "GET" && url === "/users") {
-    const users = database.select('users')
-    //Early return
-    return res.end(JSON.stringify(users));
-  }
+  const route = routes.find(route => {
+    return route.method === method && route.path.test(url)
+  })
 
-  if (method === "POST" && url === "/users") {
-    const { name, email } = req.body;
+  //se existir tal rota eu executo o handler dela, passando o req e o res
+  if(route){
+    const routeParams = req.url.match(route.path)
+    
+    req.params = { ...routeParams.groups }
 
-    const user = {
-      id: randomUUID(),
-      name,
-      email,
-    };
-
-    database.insert('users', user)
-
-    return res.writeHead(201).end();
+    return route.handler(req, res)
   }
 
   return res.writeHead(404).end();
